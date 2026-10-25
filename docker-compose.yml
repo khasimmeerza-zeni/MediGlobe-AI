@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mediglobe-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: mediglobe_user
+      POSTGRES_PASSWORD: mediglobe_secure_password_2026
+      POSTGRES_DB: mediglobe_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediglobe_user -d mediglobe_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mediglobe-backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - PROJECT_NAME=MediGlobe AI
+      - DATABASE_URL=postgresql://mediglobe_user:mediglobe_secure_password_2026@db:5432/mediglobe_db
+      - SECRET_KEY=mediglobe-ai-super-secret-production-key-2026
+      - AI_PROVIDER=mock
+      - UPLOAD_DIR=/app/storage/documents
+    ports:
+      - "8000:8000"
+    volumes:
+      - document_storage:/app/storage/documents
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mediglobe-frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  document_storage:
